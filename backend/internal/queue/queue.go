@@ -1,3 +1,12 @@
+// Package queue provides the background-job envelope and a small, process-local
+// queue used as the worker scaffold when PostgreSQL is not configured.
+//
+// This queue is deliberately NOT distributed: jobs live in a Go channel, are
+// lost when the process restarts, and are invisible to other worker processes.
+// When PostgreSQL is present the worker path is database-backed instead (see
+// internal/analysis), where jobs are claimed atomically. Redis-backed job
+// coordination is future work; it would publish jobs to a shared stream and
+// must not replace the durable database claim that already exists.
 package queue
 
 import (

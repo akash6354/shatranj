@@ -1,6 +1,9 @@
 package chess
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // CastlingRights stores the four FEN castling-right flags.
 type CastlingRights uint8
@@ -98,6 +101,25 @@ func (p Position) IsDrawByFiftyMoveRule() bool {
 	return p.HalfmoveClock >= 100
 }
 
+func (p Position) IsDrawBySeventyFiveMoveRule() bool {
+	return p.HalfmoveClock >= 150
+}
+
+// RepetitionKey identifies positions with the same legal moves for repetition rules.
+func (p Position) RepetitionKey() string {
+	fields := strings.Fields(p.FEN())
+	enPassant := "-"
+	if p.EnPassant.Valid() {
+		for _, move := range p.LegalMoves() {
+			if move.To == p.EnPassant && p.PieceAt(move.From).Type == Pawn {
+				enPassant = p.EnPassant.String()
+				break
+			}
+		}
+	}
+	return strings.Join(fields[:3], " ") + " " + enPassant
+}
+
 func (p Position) IsInsufficientMaterial() bool {
 	minorCount := 0
 	bishopColor := -1
@@ -133,5 +155,5 @@ func (p Position) IsInsufficientMaterial() bool {
 }
 
 func (p Position) IsDraw() bool {
-	return p.IsDrawByFiftyMoveRule() || p.IsInsufficientMaterial() || p.IsStalemate()
+	return p.IsDrawBySeventyFiveMoveRule() || p.IsInsufficientMaterial() || p.IsStalemate()
 }

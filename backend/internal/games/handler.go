@@ -92,6 +92,20 @@ func (h *Handler) AcceptDraw(w http.ResponseWriter, r *http.Request) {
 	writeGameJSON(w, http.StatusOK, game)
 }
 
+func (h *Handler) ClaimDraw(w http.ResponseWriter, r *http.Request) {
+	var input DrawClaimInput
+	if err := decodeGameJSON(w, r, &input); err != nil {
+		writeGameDecodeError(w, err)
+		return
+	}
+	game, err := h.service.ClaimDraw(r.Context(), r.PathValue("gameID"), principalID(r), input.Reason)
+	if err != nil {
+		writeGameError(w, err)
+		return
+	}
+	writeGameJSON(w, http.StatusOK, game)
+}
+
 func principalID(r *http.Request) string {
 	principal, ok := middleware.PrincipalFromContext(r.Context())
 	if !ok {
@@ -145,6 +159,8 @@ func writeGameError(w http.ResponseWriter, err error) {
 		httpapi.WriteError(w, http.StatusConflict, "cannot_join_own_game", "game creator cannot join as opponent")
 	case errors.Is(err, ErrMoveConflict):
 		httpapi.WriteError(w, http.StatusConflict, "position_changed", "game position changed; reload and retry")
+	case errors.Is(err, ErrTimeExpired):
+		httpapi.WriteError(w, http.StatusConflict, "clock_expired", "the player's clock expired before the move was accepted")
 	case errors.Is(err, ErrDrawUnavailable):
 		httpapi.WriteError(w, http.StatusConflict, "draw_unavailable", "no draw offer is pending")
 	case errors.Is(err, ErrInvalidRequest):

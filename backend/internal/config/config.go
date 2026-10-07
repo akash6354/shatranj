@@ -13,8 +13,11 @@ const defaultHTTPAddr = ":8080"
 
 // Config contains process-level settings shared by the server and worker.
 type Config struct {
-	HTTPAddr              string
-	PostgresDSN           string
+	HTTPAddr    string
+	PostgresDSN string
+	// RedisURL enables Redis-backed rate limiting and presence. It is optional:
+	// when empty, unparseable, or unreachable, the process falls back to
+	// in-memory stores instead of failing to start.
 	RedisURL              string
 	JWTSecret             string
 	CORSOrigins           []string

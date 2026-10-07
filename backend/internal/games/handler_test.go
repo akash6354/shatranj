@@ -31,6 +31,21 @@ func (unusedRepository) OfferDraw(context.Context, string, string) (Game, error)
 func (unusedRepository) AcceptDraw(context.Context, string, string) (Game, error) {
 	panic("unexpected repository call")
 }
+func (unusedRepository) ClaimDraw(context.Context, string, string, string) (Game, error) {
+	panic("unexpected repository call")
+}
+func (unusedRepository) ExpireDueGames(context.Context, int) ([]Game, error) {
+	panic("unexpected repository call")
+}
+func (unusedRepository) ClaimCompletionJobs(context.Context, int) ([]string, error) {
+	panic("unexpected repository call")
+}
+func (unusedRepository) CompleteCompletionJob(context.Context, string) error {
+	panic("unexpected repository call")
+}
+func (unusedRepository) RetryCompletionJob(context.Context, string, error) error {
+	panic("unexpected repository call")
+}
 
 func TestInvalidMoveJSONReturnsClientError(t *testing.T) {
 	handler := NewHandler(NewService(unusedRepository{}, nil))

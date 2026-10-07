@@ -60,6 +60,7 @@ func TestConfiguredRoutesMount(t *testing.T) {
 		{method: http.MethodGet, path: "/api/v1/admin/payment-flags", want: http.StatusUnauthorized},
 		{method: http.MethodPost, path: "/api/v1/games/33333333-3333-4333-8333-333333333333/review", want: http.StatusUnauthorized},
 		{method: http.MethodGet, path: "/api/v1/games/33333333-3333-4333-8333-333333333333/review", want: http.StatusUnauthorized},
+		{method: http.MethodPost, path: "/api/v1/games/33333333-3333-4333-8333-333333333333/draw-claims", body: `{"reason":"fifty_move_rule"}`, want: http.StatusUnauthorized},
 		{method: http.MethodPost, path: "/api/v1/auth/otp/request", want: http.StatusNotImplemented},
 	}
 	for _, test := range tests {

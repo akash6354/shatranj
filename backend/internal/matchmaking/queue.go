@@ -1,3 +1,13 @@
+// Package matchmaking pairs players for new games.
+//
+// The queue is PostgreSQL-backed, not Redis-backed: JoinQueue inserts an entry
+// and finds an opponent inside one transaction guarded by a pg advisory lock,
+// so it is durable and safe across processes without a shared cache. The
+// in-memory fallback named in the Redis integration plan is not used here
+// because the database is already the single source of truth for the queue;
+// layering a Redis queue on top would risk the two views diverging. If Redis
+// queue/state is added later it must mirror this repository rather than replace
+// it.
 package matchmaking
 
 import (
@@ -11,6 +21,7 @@ import (
 	"github.com/jackc/pgx/v5/pgconn"
 )
 
+// SQLQueueRepository is the PostgreSQL-backed matchmaking queue.
 type SQLQueueRepository struct {
 	db  *sql.DB
 	now func() time.Time

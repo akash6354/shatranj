@@ -22,4 +22,5 @@ func RegisterRoutes(mux *http.ServeMux, handler *Handler, tokens *auth.TokenMana
 	mux.Handle("POST /api/v1/games/{gameID}/resign", authenticated(http.HandlerFunc(handler.Resign)))
 	mux.Handle("POST /api/v1/games/{gameID}/draw-offers", authenticated(http.HandlerFunc(handler.OfferDraw)))
 	mux.Handle("POST /api/v1/games/{gameID}/draw-offers/accept", authenticated(http.HandlerFunc(handler.AcceptDraw)))
+	mux.Handle("POST /api/v1/games/{gameID}/draw-claims", authenticated(http.HandlerFunc(handler.ClaimDraw)))
 }

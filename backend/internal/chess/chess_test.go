@@ -151,6 +151,25 @@ func TestInsufficientMaterialAndDrawClock(t *testing.T) {
 	if !position.IsInsufficientMaterial() || !position.IsDrawByFiftyMoveRule() {
 		t.Fatal("bare kings at halfmove 100 should be drawn")
 	}
+	if position.IsDrawBySeventyFiveMoveRule() {
+		t.Fatal("halfmove 100 is claimable, not an automatic 75-move draw")
+	}
+	position.HalfmoveClock = 150
+	if !position.IsDrawBySeventyFiveMoveRule() {
+		t.Fatal("halfmove 150 should be an automatic 75-move draw")
+	}
+}
+
+func TestRepetitionKeyNormalizesUncapturableEnPassant(t *testing.T) {
+	withoutEnPassant := mustFEN(t, "4k3/8/8/3p4/8/8/8/4K3 w - - 0 1")
+	withUncapturableEnPassant := mustFEN(t, "4k3/8/8/3p4/8/8/8/4K3 w - d6 0 1")
+	if withoutEnPassant.RepetitionKey() != withUncapturableEnPassant.RepetitionKey() {
+		t.Fatalf("uncapturable en passant changed repetition key: %q != %q", withoutEnPassant.RepetitionKey(), withUncapturableEnPassant.RepetitionKey())
+	}
+	withCapturableEnPassant := mustFEN(t, "4k3/8/8/3pP3/8/8/8/4K3 w - d6 0 1")
+	if withCapturableEnPassant.RepetitionKey() == withoutEnPassant.RepetitionKey() {
+		t.Fatal("capturable en passant must distinguish repetition positions")
+	}
 }
 
 func mustSquare(t *testing.T, name string) Square {

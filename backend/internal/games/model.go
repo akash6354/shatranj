@@ -15,6 +15,7 @@ var (
 	ErrGameFull        = errors.New("game already has two players")
 	ErrCannotJoinOwn   = errors.New("game creator cannot join as opponent")
 	ErrMoveConflict    = errors.New("game position changed; reload and retry")
+	ErrTimeExpired     = errors.New("player clock expired")
 	ErrInvalidRequest  = errors.New("invalid game request")
 	ErrDrawUnavailable = errors.New("no draw offer is pending")
 )
@@ -37,22 +38,25 @@ const (
 )
 
 type Game struct {
-	ID            string       `json:"id"`
-	WhitePlayerID string       `json:"white_player_id"`
-	BlackPlayerID string       `json:"black_player_id,omitempty"`
-	TimeControl   TimeControl  `json:"time_control"`
-	Mode          string       `json:"mode"`
-	Rated         bool         `json:"rated"`
-	CurrentFEN    string       `json:"current_fen"`
-	Status        Status       `json:"status"`
-	Result        Result       `json:"result"`
-	EndReason     string       `json:"end_reason,omitempty"`
-	DrawOfferBy   string       `json:"draw_offer_by,omitempty"`
-	CreatedAt     time.Time    `json:"created_at"`
-	StartedAt     *time.Time   `json:"started_at,omitempty"`
-	FinishedAt    *time.Time   `json:"finished_at,omitempty"`
-	UpdatedAt     time.Time    `json:"updated_at"`
-	Moves         []MoveRecord `json:"moves,omitempty"`
+	ID             string       `json:"id"`
+	WhitePlayerID  string       `json:"white_player_id"`
+	BlackPlayerID  string       `json:"black_player_id,omitempty"`
+	TimeControl    TimeControl  `json:"time_control"`
+	WhiteClockMS   int64        `json:"white_clock_ms"`
+	BlackClockMS   int64        `json:"black_clock_ms"`
+	ClockUpdatedAt *time.Time   `json:"clock_updated_at,omitempty"`
+	Mode           string       `json:"mode"`
+	Rated          bool         `json:"rated"`
+	CurrentFEN     string       `json:"current_fen"`
+	Status         Status       `json:"status"`
+	Result         Result       `json:"result"`
+	EndReason      string       `json:"end_reason,omitempty"`
+	DrawOfferBy    string       `json:"draw_offer_by,omitempty"`
+	CreatedAt      time.Time    `json:"created_at"`
+	StartedAt      *time.Time   `json:"started_at,omitempty"`
+	FinishedAt     *time.Time   `json:"finished_at,omitempty"`
+	UpdatedAt      time.Time    `json:"updated_at"`
+	Moves          []MoveRecord `json:"moves,omitempty"`
 }
 
 type TimeControl struct {
@@ -79,6 +83,10 @@ type CreateInput struct {
 
 type MoveInput struct {
 	UCI string `json:"uci"`
+}
+
+type DrawClaimInput struct {
+	Reason string `json:"reason"`
 }
 
 type GameEvent struct {

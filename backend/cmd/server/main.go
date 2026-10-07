@@ -24,6 +24,7 @@ import (
 	"github.com/shatranj/backend/internal/friendships"
 	"github.com/shatranj/backend/internal/games"
 	"github.com/shatranj/backend/internal/httpapi"
+	"github.com/shatranj/backend/internal/leaderboard"
 	"github.com/shatranj/backend/internal/lessons"
 	"github.com/shatranj/backend/internal/matchmaking"
 	"github.com/shatranj/backend/internal/middleware"
@@ -44,6 +45,7 @@ import (
 const (
 	readHeaderTimeout = 5 * time.Second
 	startupTimeout    = 5 * time.Second
+	gameClockPoll     = 250 * time.Millisecond
 )
 
 func main() {
@@ -76,18 +78,16 @@ func run(logger *slog.Logger) error {
 		logger.Info("PostgreSQL connected")
 	}
 
-	redisClient, err := cache.OpenRedis(startupCtx, cfg.RedisURL)
+	cacheClient, err := cache.Open(startupCtx, cfg.RedisURL)
 	if err != nil {
-		return err
+		logger.Warn("Redis unavailable, using in-memory cache fallback", "error", err)
 	}
-	if redisClient != nil {
-		defer func() {
-			if err := redisClient.Close(); err != nil {
-				logger.Error("close Redis client", "error", err)
-			}
-		}()
-		logger.Info("Redis connected")
-	}
+	defer func() {
+		if err := cacheClient.Close(); err != nil {
+			logger.Error("close cache client", "error", err)
+		}
+	}()
+	logger.Info(cacheClient.Describe())
 
 	var tokens *auth.TokenManager
 	if db != nil {
@@ -97,9 +97,16 @@ func run(logger *slog.Logger) error {
 		}
 	}
 
-	hub := realtime.NewHub(logger)
+	hub := realtime.NewHubWithPresence(logger, cacheClient)
 	defer hub.CloseAll()
-	var handler http.Handler = newHandlerWithConfig(db, tokens, hub, cfg.CORSOrigins, cfg)
+	var clockService *games.Service
+	if db != nil {
+		clockService = games.NewServiceWithRatings(
+			games.NewRepository(db), hub, ratings.NewService(ratings.NewRepository(db)),
+		)
+		clockService.SetAchievementTracker(achievements.NewService(achievements.NewRepository(db)))
+	}
+	var handler http.Handler = newHandlerWithConfig(db, tokens, hub, cfg.CORSOrigins, cfg, cacheClient)
 
 	handler = middleware.CORS(cfg.CORSOrigins)(handler)
 	handler = middleware.Recovery(logger)(handler)
@@ -112,7 +119,25 @@ func run(logger *slog.Logger) error {
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
+	if cacheClient.RedisBacked() {
+		if err := hub.EnableGameEventFanout(ctx); err != nil {
+			logger.Warn("shared game event fanout unavailable", "error", err)
+		}
+	}
+	var clockDone chan struct{}
+	if clockService != nil {
+		clockDone = make(chan struct{})
+		go func() {
+			defer close(clockDone)
+			runGameClockExpiry(ctx, clockService, logger)
+		}()
+	}
+	defer func() {
+		stop()
+		if clockDone != nil {
+			<-clockDone
+		}
+	}()
 
 	serverErrors := make(chan error, 1)
 	go func() {
@@ -140,15 +165,33 @@ func run(logger *slog.Logger) error {
 	}
 }
 
+func runGameClockExpiry(ctx context.Context, service *games.Service, logger *slog.Logger) {
+	ticker := time.NewTicker(gameClockPoll)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			if err := service.ExpireDueGames(ctx, 100); err != nil && ctx.Err() == nil {
+				logger.ErrorContext(ctx, "expire game clocks", "error", err)
+			}
+			if err := service.ProcessCompletionJobs(ctx, 100); err != nil && ctx.Err() == nil {
+				logger.ErrorContext(ctx, "process game completion jobs", "error", err)
+			}
+		}
+	}
+}
+
 func newHandler(db *sql.DB, tokens *auth.TokenManager) http.Handler {
 	return newHandlerWithOrigins(db, tokens, realtime.NewHub(nil), nil)
 }
 
 func newHandlerWithOrigins(db *sql.DB, tokens *auth.TokenManager, hub *realtime.Hub, corsOrigins []string) http.Handler {
-	return newHandlerWithConfig(db, tokens, hub, corsOrigins, config.Config{PremiumPricePaise: 49_900})
+	return newHandlerWithConfig(db, tokens, hub, corsOrigins, config.Config{PremiumPricePaise: 49_900}, nil)
 }
 
-func newHandlerWithConfig(db *sql.DB, tokens *auth.TokenManager, hub *realtime.Hub, corsOrigins []string, cfg config.Config) http.Handler {
+func newHandlerWithConfig(db *sql.DB, tokens *auth.TokenManager, hub *realtime.Hub, corsOrigins []string, cfg config.Config, store cache.Store) http.Handler {
 	return httpapi.NewRouter(func(mux *http.ServeMux) {
 		if db == nil || tokens == nil {
 			unavailable := func(w http.ResponseWriter, _ *http.Request) {
@@ -162,6 +205,7 @@ func newHandlerWithConfig(db *sql.DB, tokens *auth.TokenManager, hub *realtime.H
 			mux.HandleFunc("/api/v1/reviews/", unavailable)
 			mux.HandleFunc("/api/v1/matchmaking/", unavailable)
 			mux.HandleFunc("/api/v1/ratings/", unavailable)
+			mux.HandleFunc("/api/v1/leaderboard/", unavailable)
 			mux.HandleFunc("/api/v1/puzzles", unavailable)
 			mux.HandleFunc("/api/v1/puzzles/", unavailable)
 			mux.HandleFunc("/api/v1/lessons", unavailable)
@@ -189,7 +233,7 @@ func newHandlerWithConfig(db *sql.DB, tokens *auth.TokenManager, hub *realtime.H
 			mux.HandleFunc("/api/v1/admin/", unavailable)
 			return
 		}
-		auth.RegisterRoutes(mux, auth.NewHandler(auth.NewService(auth.NewRepository(db), tokens)), tokens)
+		auth.RegisterRoutesWithCache(mux, auth.NewHandler(auth.NewService(auth.NewRepository(db), tokens)), tokens, store)
 		users.RegisterRoutes(mux, users.NewRepository(db), tokens)
 		profiles.RegisterRoutes(mux, profiles.NewRepository(db), tokens)
 		achievementService := achievements.NewService(achievements.NewRepository(db))
@@ -205,6 +249,7 @@ func newHandlerWithConfig(db *sql.DB, tokens *auth.TokenManager, hub *realtime.H
 		)
 		review.RegisterRoutes(mux, review.NewHandler(reviewService), tokens)
 		ratings.RegisterRoutes(mux, ratings.NewHandler(ratingService), tokens)
+		leaderboard.RegisterRoutes(mux, leaderboard.NewHandler(leaderboard.NewService(leaderboard.NewRepository(db))))
 		matchmakingService := matchmaking.NewService(matchmaking.NewQueueRepository(db), ratingService, gameService)
 		matchmaking.RegisterRoutes(mux, matchmaking.NewHandler(matchmakingService), tokens)
 		puzzleService := puzzles.NewService(puzzles.NewRepository(db))

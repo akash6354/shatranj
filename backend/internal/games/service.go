@@ -137,6 +137,15 @@ func (s *Service) SubmitMove(ctx context.Context, gameID, userID string, input M
 		return Game{}, fmt.Errorf("%w: %v", ErrInvalidRequest, err)
 	}
 	status, result, reason := determineResult(next)
+	if status == StatusActive {
+		repeated, err := fivefoldRepetition(game.Moves, next)
+		if err != nil {
+			return Game{}, err
+		}
+		if repeated {
+			status, result, reason = StatusFinished, ResultDraw, "fivefold_repetition"
+		}
+	}
 	record := MoveRecord{
 		Number: position.FullmoveNumber, PlayerID: userID, UCI: move.String(),
 		SAN: san, FENAfter: next.FEN(),
@@ -145,6 +154,9 @@ func (s *Service) SubmitMove(ctx context.Context, gameID, userID string, input M
 		PlayerID: userID, Move: move, Record: record, FEN: next.FEN(),
 		Status: status, Result: result, Reason: reason,
 	})
+	if errors.Is(err, ErrTimeExpired) {
+		return s.handleTimeout(ctx, gameID, userID, updated)
+	}
 	if err != nil {
 		return Game{}, err
 	}
@@ -170,11 +182,34 @@ func (s *Service) SubmitMove(ctx context.Context, gameID, userID string, input M
 	return updated, nil
 }
 
+func fivefoldRepetition(history []MoveRecord, next chess.Position) (bool, error) {
+	key := next.RepetitionKey()
+	occurrences := 0
+	count := func(position chess.Position) {
+		if position.RepetitionKey() == key {
+			occurrences++
+		}
+	}
+	count(chess.StartingPosition())
+	for _, record := range history {
+		position, err := chess.ParseFEN(record.FENAfter)
+		if err != nil {
+			return false, fmt.Errorf("parse historical position for repetition: %w", err)
+		}
+		count(position)
+	}
+	count(next)
+	return occurrences >= 5, nil
+}
+
 func (s *Service) Resign(ctx context.Context, gameID, userID string) (Game, error) {
 	if _, err := s.Get(ctx, gameID, userID); err != nil {
 		return Game{}, err
 	}
 	game, err := s.repository.Resign(ctx, gameID, userID)
+	if errors.Is(err, ErrTimeExpired) {
+		return s.handleTimeout(ctx, gameID, userID, game)
+	}
 	if err != nil {
 		return Game{}, err
 	}
@@ -192,6 +227,9 @@ func (s *Service) OfferDraw(ctx context.Context, gameID, userID string) (Game, e
 		return Game{}, err
 	}
 	game, err := s.repository.OfferDraw(ctx, gameID, userID)
+	if errors.Is(err, ErrTimeExpired) {
+		return s.handleTimeout(ctx, gameID, userID, game)
+	}
 	if err != nil {
 		return Game{}, err
 	}
@@ -204,6 +242,9 @@ func (s *Service) AcceptDraw(ctx context.Context, gameID, userID string) (Game, 
 		return Game{}, err
 	}
 	game, err := s.repository.AcceptDraw(ctx, gameID, userID)
+	if errors.Is(err, ErrTimeExpired) {
+		return s.handleTimeout(ctx, gameID, userID, game)
+	}
 	if err != nil {
 		return Game{}, err
 	}
@@ -212,6 +253,84 @@ func (s *Service) AcceptDraw(ctx context.Context, gameID, userID string) (Game, 
 		return Game{}, err
 	}
 	return game, nil
+}
+
+func (s *Service) ClaimDraw(ctx context.Context, gameID, userID, reason string) (Game, error) {
+	if !validGameID(gameID) {
+		return Game{}, ErrNotFound
+	}
+	if userID == "" {
+		return Game{}, ErrForbidden
+	}
+	game, err := s.repository.ClaimDraw(ctx, gameID, userID, reason)
+	if errors.Is(err, ErrTimeExpired) {
+		return s.handleTimeout(ctx, gameID, userID, game)
+	}
+	if err != nil {
+		return Game{}, err
+	}
+	s.publish(gameID, GameEvent{
+		Type: "game_ended", GameID: gameID, Game: &game, PlayerID: userID,
+		Result: game.Result, Reason: game.EndReason, CreatedAt: game.UpdatedAt,
+	})
+	if err := s.recordCompletion(ctx, game); err != nil {
+		return Game{}, err
+	}
+	return game, nil
+}
+
+func (s *Service) handleTimeout(ctx context.Context, gameID, userID string, game Game) (Game, error) {
+	if err := s.recordTimedOutGame(ctx, gameID, userID, game); err != nil {
+		return game, fmt.Errorf("record timeout completion: %w", err)
+	}
+	return game, ErrTimeExpired
+}
+
+func (s *Service) recordTimedOutGame(ctx context.Context, gameID, userID string, game Game) error {
+	s.publish(gameID, GameEvent{
+		Type: "game_ended", GameID: gameID, Game: &game, PlayerID: userID,
+		Result: game.Result, Reason: game.EndReason, CreatedAt: game.UpdatedAt,
+	})
+	return s.recordCompletion(ctx, game)
+}
+
+func (s *Service) ExpireDueGames(ctx context.Context, limit int) error {
+	games, err := s.repository.ExpireDueGames(ctx, limit)
+	if err != nil {
+		return err
+	}
+	var completionErrors []error
+	for _, game := range games {
+		if err := s.recordTimedOutGame(ctx, game.ID, "", game); err != nil {
+			completionErrors = append(completionErrors, fmt.Errorf("complete timed-out game %s: %w", game.ID, err))
+		}
+	}
+	return errors.Join(completionErrors...)
+}
+
+func (s *Service) ProcessCompletionJobs(ctx context.Context, limit int) error {
+	gameIDs, err := s.repository.ClaimCompletionJobs(ctx, limit)
+	if err != nil {
+		return err
+	}
+	var completionErrors []error
+	for _, gameID := range gameIDs {
+		game, processErr := s.repository.Get(ctx, gameID)
+		if processErr == nil {
+			processErr = s.recordCompletion(ctx, game)
+		}
+		if processErr != nil {
+			if retryErr := s.repository.RetryCompletionJob(ctx, gameID, processErr); retryErr != nil {
+				completionErrors = append(completionErrors, fmt.Errorf("retry completion job %s: %w", gameID, retryErr))
+			}
+			completionErrors = append(completionErrors, fmt.Errorf("process completion job %s: %w", gameID, processErr))
+			continue
+		}
+		if err := s.repository.CompleteCompletionJob(ctx, gameID); err != nil {
+			completionErrors = append(completionErrors, fmt.Errorf("acknowledge completion job %s: %w", gameID, err))
+		}
+	}
+	return errors.Join(completionErrors...)
 }
 
 func (s *Service) recordCompletion(ctx context.Context, game Game) error {

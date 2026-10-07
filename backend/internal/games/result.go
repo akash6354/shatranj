@@ -16,8 +16,8 @@ func determineResult(position chess.Position) (Status, Result, string) {
 	if position.IsInsufficientMaterial() {
 		return StatusFinished, ResultDraw, "insufficient_material"
 	}
-	if position.IsDrawByFiftyMoveRule() {
-		return StatusFinished, ResultDraw, "fifty_move_rule"
+	if position.IsDrawBySeventyFiveMoveRule() {
+		return StatusFinished, ResultDraw, "seventyfive_move_rule"
 	}
 	return StatusActive, ResultOngoing, ""
 }

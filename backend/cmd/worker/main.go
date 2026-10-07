@@ -45,18 +45,16 @@ func run(logger *slog.Logger) error {
 		}()
 		logger.Info("PostgreSQL connected")
 	}
-	redisClient, err := cache.OpenRedis(startupCtx, cfg.RedisURL)
+	cacheClient, err := cache.Open(startupCtx, cfg.RedisURL)
 	if err != nil {
-		return err
+		logger.Warn("Redis unavailable, using in-memory cache fallback", "error", err)
 	}
-	if redisClient != nil {
-		defer func() {
-			if err := redisClient.Close(); err != nil {
-				logger.Error("close Redis client", "error", err)
-			}
-		}()
-		logger.Info("Redis connected")
-	}
+	defer func() {
+		if err := cacheClient.Close(); err != nil {
+			logger.Error("close cache client", "error", err)
+		}
+	}()
+	logger.Info(cacheClient.Describe())
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()

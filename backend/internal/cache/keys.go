@@ -11,3 +11,15 @@ func UserKey(userID string) string {
 func GameKey(gameID string) string {
 	return keyPrefix + "game:" + gameID
 }
+
+func RateLimitKey(scope, identity string) string {
+	return prefixed("rate:" + scope + ":" + identity)
+}
+
+func PresenceKey(userID string) string {
+	return prefixed("presence:user:" + userID)
+}
+
+func LockKey(name string) string {
+	return prefixed("lock:" + name)
+}
