@@ -1,0 +1,115 @@
+import '../domain/review_models.dart';
+import '../domain/review_repository.dart';
+
+class MockReviewRepository implements ReviewRepository {
+  @override
+  Future<GameReview> getReview(String gameId) async => GameReview(
+        id: gameId,
+        white: const ReviewPlayer(
+          name: 'Akash',
+          rating: 1248,
+          accuracy: 87.6,
+          color: 'White',
+        ),
+        black: const ReviewPlayer(
+          name: 'Rohan',
+          rating: 1223,
+          accuracy: 82.1,
+          color: 'Black',
+        ),
+        result: '1-0',
+        resultLabel: 'You won by checkmate',
+        opening: 'Italian Game',
+        stats: const ReviewStats(
+          brilliant: 3,
+          best: 18,
+          good: 42,
+          inaccuracies: 7,
+          mistakes: 2,
+          blunders: 1,
+          missedWins: 0,
+        ),
+        rating: 1720,
+        ratingChange: 12,
+        phases: const [
+          PhaseStats(name: 'Opening', accuracy: 92, moves: 12, highlight: 'Strong development'),
+          PhaseStats(name: 'Middlegame', accuracy: 84, moves: 26, highlight: 'Found the initiative'),
+          PhaseStats(name: 'Endgame', accuracy: 91, moves: 14, highlight: 'Converted cleanly'),
+        ],
+        moves: const [
+          ReviewMove(
+            number: 1,
+            white: 'e4',
+            black: 'e5',
+            evaluation: .2,
+            classification: MoveClassification.good,
+            fenAfter: 'r1bqk2r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 4',
+            explanation: 'A principled opening move that controls the center.',
+            bestMove: 'e4',
+          ),
+          ReviewMove(
+            number: 2,
+            white: 'Nf3',
+            black: 'Nc6',
+            evaluation: .3,
+            classification: MoveClassification.best,
+            fenAfter: 'r1bqk2r/pppp1ppp/2n2n2/4p3/4P3/2N2N2/PPPP1PPP/R1BQKB1R w KQkq - 2 4',
+            explanation: 'Develops a piece and prepares to castle.',
+            bestMove: 'Nf3',
+          ),
+          ReviewMove(
+            number: 3,
+            white: 'Bb5',
+            black: 'a6',
+            evaluation: .4,
+            classification: MoveClassification.brilliant,
+            fenAfter: 'r1bqk2r/1ppp1ppp/p1n2n2/1B2p3/4P3/2N2N2/PPPP1PPP/R1BQK2R b KQkq - 2 4',
+            explanation: 'A precise move that increases pressure on the center.',
+            bestMove: 'Bb5',
+          ),
+          ReviewMove(
+            number: 4,
+            white: 'Ba4',
+            black: 'Nf6',
+            evaluation: .1,
+            classification: MoveClassification.inaccuracy,
+            fenAfter: 'r1bqk2r/1ppp1ppp/p1n2n2/4p3/B3P3/2N2N2/PPPP1PPP/R1BQK2R w KQkq - 2 4',
+            explanation: 'This allowed the opponent to simplify your advantage.',
+            bestMove: 'd4',
+          ),
+          ReviewMove(
+            number: 5,
+            white: 'O-O',
+            black: 'Be7',
+            evaluation: 1.2,
+            classification: MoveClassification.best,
+            fenAfter: 'r1bqk2r/1ppp1ppp/p1n2n2/4p3/B3P3/2N2N2/PPPP1PPP/R1BQ1RK1 b kq - 3 5',
+            explanation: 'Safe king placement and a smooth continuation.',
+            bestMove: 'O-O',
+          ),
+        ],
+        insights: const [
+          ReviewInsight(
+            title: 'You played a strong opening.',
+            description: 'Gained a small advantage and maintained it through development.',
+            icon: 'opening',
+            color: 0xFF72D18F,
+            phase: 'Summary',
+          ),
+          ReviewInsight(
+            title: 'You missed a tactical opportunity.',
+            description: 'Move 17: Nxe6 was stronger and would have increased the advantage.',
+            icon: 'tactic',
+            color: 0xFFFFB84D,
+            phase: 'Middlegame',
+          ),
+          ReviewInsight(
+            title: 'Excellent endgame technique!',
+            description: 'You converted the advantage cleanly and finished with confidence.',
+            icon: 'target',
+            color: 0xFF80D7B9,
+            phase: 'Endgame',
+          ),
+        ],
+      );
+}

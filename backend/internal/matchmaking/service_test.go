@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shatranj/backend/internal/games"
-	"github.com/shatranj/backend/internal/ratings"
+	"github.com/akash6354/shatranj/backend/internal/games"
+	"github.com/akash6354/shatranj/backend/internal/ratings"
 )
 
 type fakeRatings struct {

@@ -8,13 +8,13 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/shatranj/backend/internal/analysis"
-	"github.com/shatranj/backend/internal/cache"
-	"github.com/shatranj/backend/internal/config"
-	"github.com/shatranj/backend/internal/database"
-	"github.com/shatranj/backend/internal/observability"
-	"github.com/shatranj/backend/internal/queue"
-	"github.com/shatranj/backend/internal/review"
+	"github.com/akash6354/shatranj/backend/internal/analysis"
+	"github.com/akash6354/shatranj/backend/internal/cache"
+	"github.com/akash6354/shatranj/backend/internal/config"
+	"github.com/akash6354/shatranj/backend/internal/database"
+	"github.com/akash6354/shatranj/backend/internal/observability"
+	"github.com/akash6354/shatranj/backend/internal/queue"
+	"github.com/akash6354/shatranj/backend/internal/review"
 )
 
 func main() {

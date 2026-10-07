@@ -3,8 +3,8 @@ package profiles
 import (
 	"net/http"
 
-	"github.com/shatranj/backend/internal/auth"
-	"github.com/shatranj/backend/internal/middleware"
+	"github.com/akash6354/shatranj/backend/internal/auth"
+	"github.com/akash6354/shatranj/backend/internal/middleware"
 )
 
 func RegisterRoutes(mux *http.ServeMux, repository Repository, tokens *auth.TokenManager) {

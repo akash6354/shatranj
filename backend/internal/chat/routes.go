@@ -3,8 +3,8 @@ package chat
 import (
 	"net/http"
 
-	"github.com/shatranj/backend/internal/auth"
-	"github.com/shatranj/backend/internal/middleware"
+	"github.com/akash6354/shatranj/backend/internal/auth"
+	"github.com/akash6354/shatranj/backend/internal/middleware"
 )
 
 func RegisterRoutes(mux *http.ServeMux, handler *Handler, tokens *auth.TokenManager) {

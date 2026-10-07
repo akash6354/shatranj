@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/shatranj/backend/internal/auth"
+	"github.com/akash6354/shatranj/backend/internal/auth"
 )
 
 type roleCheckerFunc func(context.Context, string) (bool, error)

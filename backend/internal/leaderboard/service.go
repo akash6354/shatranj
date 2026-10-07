@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/shatranj/backend/internal/ratings"
+	"github.com/akash6354/shatranj/backend/internal/ratings"
 )
 
 var ErrInvalidRequest = errors.New("invalid leaderboard request")

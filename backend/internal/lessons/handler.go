@@ -7,8 +7,8 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/shatranj/backend/internal/httpapi"
-	"github.com/shatranj/backend/internal/middleware"
+	"github.com/akash6354/shatranj/backend/internal/httpapi"
+	"github.com/akash6354/shatranj/backend/internal/middleware"
 )
 
 type Handler struct {

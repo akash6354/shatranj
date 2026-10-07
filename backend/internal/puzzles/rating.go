@@ -1,6 +1,6 @@
 package puzzles
 
-import "github.com/shatranj/backend/internal/ratings"
+import "github.com/akash6354/shatranj/backend/internal/ratings"
 
 const defaultPuzzleRating = 1200
 

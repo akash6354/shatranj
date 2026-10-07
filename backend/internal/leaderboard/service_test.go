@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/shatranj/backend/internal/ratings"
+	"github.com/akash6354/shatranj/backend/internal/ratings"
 )
 
 type recordingRepository struct {

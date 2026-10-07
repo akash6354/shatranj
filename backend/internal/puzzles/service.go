@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/shatranj/backend/internal/achievements"
-	"github.com/shatranj/backend/internal/chess"
+	"github.com/akash6354/shatranj/backend/internal/achievements"
+	"github.com/akash6354/shatranj/backend/internal/chess"
 )
 
 const (

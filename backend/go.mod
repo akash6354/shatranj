@@ -1,4 +1,4 @@
-module github.com/shatranj/backend
+module github.com/akash6354/shatranj/backend
 
 go 1.23.0
 

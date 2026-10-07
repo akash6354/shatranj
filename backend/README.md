@@ -11,6 +11,13 @@ in-memory stores when it is not.
 Install Go 1.23+ and PostgreSQL. Copy/configure environment values before
 starting the API:
 
+The repository includes `.env.example` as a reference. The Go application
+currently reads environment variables from the process and does not load a
+`.env` file automatically. For a local PowerShell setup, copy it to
+`.env.ps1`, review the placeholder values, then load it with
+`. .\.env.ps1` before running the server or worker. Do not commit files
+containing real credentials.
+
 | Variable | Required | Default / purpose |
 | --- | --- | --- |
 | `DATABASE_URL` | For feature APIs/workers | PostgreSQL connection string. Without it, only health and an in-memory worker scaffold are available. |

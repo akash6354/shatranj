@@ -3,7 +3,7 @@ package analysis
 import (
 	"math"
 
-	"github.com/shatranj/backend/internal/chess"
+	"github.com/akash6354/shatranj/backend/internal/chess"
 )
 
 func centipawnLoss(before, after int, mover chess.Color) int {
